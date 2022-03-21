@@ -28,7 +28,7 @@ async def select(sql,args,size=None):
     global __pool
     async with __pool.get() as conn:
         async with conn.cursor(aiomysql.DictCursor) as cur:
-            await cur.execute(sql.replace('?','%s'),args or ())
+            await cur.execute(sql.replace('?','%s'), args or ())
             if size:
                 rs=await cur.fetchmany(size)
             else:
@@ -43,7 +43,7 @@ async def execute(sql,args,autocommit=True):
             await conn.begin()
         try:
             async with conn.cursor(aiomysql.DictCursor) as cur:
-                await cur.execute(sql.replace('?','%s'),args)
+                await cur.execute(sql.replace('?','%s'), args)
                 affected=cur.rowcount
             if not autocommit:
                 await conn.commit()
@@ -146,7 +146,7 @@ class Model(dict, metaclass=ModelMetaclass):
         if value is None:
             field=self.__mappings__[key]
             if field.default is not None:
-                value=field.default() if callable(field.dafault) else field.default
+                value=field.default() if callable(field.default) else field.default
                 logging.debug('Using default value for %s: %s' % (key, str(value)))
                 setattr(self, key, value)
         return value
