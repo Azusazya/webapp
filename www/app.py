@@ -37,6 +37,19 @@ async def logger_factory(app, handler):
         return (await handler(request))
     return logger
 
+async def auth_factory(app, handler):
+    async def auth(request):
+        logging.info('check user: %s %s' % (request.method, request.path))
+        requset.__user__ = None
+        cookie_str = request.cookies.get(COOKIE_NAME)
+        if cookie_str:
+            user = await cookie2user(cookie_str)
+            if user:
+                logging.info('set current user: %s' % user.email)
+                request.__user__ = user
+        return (await handler(request))
+    return auth    
+
 async def data_factory(app, handler):
     async def parse_data(request):
         if request.method == 'POST':
