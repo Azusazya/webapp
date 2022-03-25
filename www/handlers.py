@@ -5,7 +5,7 @@ import re, time, json, logging, hashlib, base64, asyncio
 from aiohttp import web
 
 from coroweb import get, post
-from apis import APIValueError, APIResourceNotFoundError, APIError
+from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
 from models import User, Comment, Blog, next_id
 from config import configs
@@ -30,6 +30,12 @@ def index(request):
 def register():
     return{
         '__template__': 'register.html'
+    }
+
+@get('/signin')
+def signin():
+    return {
+        '__template__':'signin.html'
     }
 
 @get('/api/users')
@@ -87,6 +93,14 @@ async def authenticate(*, email, passwd):
     r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
     return r 
 
+@get('/signout')
+def signout(request):
+    referer = request.headers.get('Referer')
+    r = web.HTTPFound(referer or '/')
+    r.set_cookie(COOKIE_NAME, '-deleted-', max_age=0, httponly=True)
+    logging.info('user signed out.')
+    return r
+
 def user2cookie(user, max_age):
     expires = str(int(time.time() + max_age))
     s = '%s-%s-%s-%s' % (user.id, user.passwd, expires, _COOKIE_KEY)
@@ -118,5 +132,33 @@ async def cookie2user(cookie_str):
     except Exception as e:
         logging.exception(e)
         return None 
+
+@get('/manage/blogs/create')
+def manage_create_blog():
+    return {
+        '__template__':'manage_blog_edit.html',
+        'id':'',
+        'action':'/api/blogs'
+    }
+
+@post('/api/blogs')
+async def api_create_blog(request, *, name, summary, content):
+    check_admin(request)
+    if not name or not name.strip():
+        raise APIValueError('name', 'name cannot be empty.')
+    if not summary or not summary.strip():
+        raise APIValueError('summary', 'summary cannot be empty.')
+    if not content or not content.strip():
+        raise APIValueError('content', 'content cannot be empty.')
+    blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name, user_image=request.__user__.image, name=name.strip(), summary=summary.strip(), content=content.strip())
+    await blog.save()
+    return blog
+
+def check_admin(request):
+    if request.__user__ is None:
+        raise APIPermissionError()
+
+
+
 
 
