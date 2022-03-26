@@ -5,7 +5,7 @@ import re, time, json, logging, hashlib, base64, asyncio
 from aiohttp import web
 
 from coroweb import get, post
-from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
+from apis import Page, APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
 from models import User, Comment, Blog, next_id
 from config import configs
@@ -23,7 +23,7 @@ def index(request):
     ]
     return {
         '__template__': 'blogs.html',
-        'blogs': blogs
+        'blogs': blogs,
     }
 
 @get('/register')
@@ -157,6 +157,39 @@ async def api_create_blog(request, *, name, summary, content):
 def check_admin(request):
     if request.__user__ is None:
         raise APIPermissionError()
+
+@get('/api/blogs')
+async def api_blogs(*, page='1'):
+    page_index = get_page_index(page)
+    num = await Blog.find_number('count(id)')
+    p = Page(num, page_index)
+    if num == 0:
+        return dict(page=p, blogs=())
+    blogs = await Blog.find_all(order_by='created_at desc', limit=(p.offset,p.limit))
+    return dict(page=p, blogs=blogs)
+
+def get_page_index(page_str):
+    p = 1
+    try:
+        p = int(page_str)
+    except ValueError as e:
+        pass
+    if p < 1:
+        p = 1
+    return p
+
+@get('/manage/blogs')
+def manage_blogs(*, page='1'):
+    return {
+        '__template__':'manage_blogs.html',
+        'page_index':get_page_index(page)
+    }
+
+
+
+
+
+
 
 
 
